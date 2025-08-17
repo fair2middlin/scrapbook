@@ -312,4 +312,201 @@
 
             if (imageUrl) {
                 const newGraphic = document.createElement('div');
-                newGraphic.classList.add
+                newGraphic.classList.add('draggable-item');
+                if (isHeader) {
+                    newGraphic.classList.add('header-image');
+                }
+                if (isTransparent) {
+                    newGraphic.classList.add('transparent-image');
+                }
+
+                // Set position using left/top for easier serialization
+                const offsetX = e.offsetX || 10;
+                const offsetY = e.offsetY || 10;
+                newGraphic.style.left = `${offsetX}px`;
+                newGraphic.style.top = `${offsetY}px`;
+                newGraphic.style.width = '100px';
+                newGraphic.style.height = '100px';
+                newGraphic.style.zIndex = zIndexCounter++;
+
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.alt = "Scrapbook graphic";
+                newGraphic.appendChild(img);
+                workArea.appendChild(newGraphic);
+
+                newGraphic.addEventListener('mousedown', (evt) => {
+                    workArea.querySelectorAll('.draggable-item').forEach(el => el.classList.remove('active'));
+                    newGraphic.classList.add('active');
+                    newGraphic.style.zIndex = zIndexCounter++;
+                });
+
+                makeDraggableAndResizable(newGraphic);
+            }
+        });
+
+        // Improved drag: use left/top, not transform
+        function makeDraggableAndResizable(element) {
+            let isDragging = false;
+            let startX, startY, startLeft, startTop;
+
+            element.addEventListener('mousedown', (e) => {
+                if (e.target.tagName === 'IMG') {
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startLeft = parseInt(element.style.left, 10);
+                    startTop = parseInt(element.style.top, 10);
+                    document.body.style.userSelect = "none";
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    let dx = e.clientX - startX;
+                    let dy = e.clientY - startY;
+                    element.style.left = `${startLeft + dx}px`;
+                    element.style.top = `${startTop + dy}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                document.body.style.userSelect = "";
+            });
+
+            // Browser-native resize: already enabled via CSS "resize: both"
+            // For more control, implement custom resize handles
+        }
+        
+        // Save page functionality
+        savePageBtn.addEventListener('click', async () => {
+            // Temporarily hide the input and border for a clean screenshot
+            scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
+            const tempDisplay = scrapbookTitleInput?.style.display || "";
+            const tempBorderStyle = workArea.style.border;
+            if (scrapbookTitleInput) scrapbookTitleInput.style.display = 'none';
+            workArea.style.border = 'none';
+            
+            // Use html2canvas to capture the work area as a thumbnail
+            const canvas = await html2canvas(workArea);
+            const thumbnailDataUrl = canvas.toDataURL();
+            
+            // Restore styles
+            if (scrapbookTitleInput) scrapbookTitleInput.style.display = tempDisplay;
+            workArea.style.border = tempBorderStyle;
+
+            // Capture the positions, sizes, and classes of draggable items
+            const pageContent = [];
+            workArea.querySelectorAll('.draggable-item').forEach(el => {
+                const img = el.querySelector('img');
+                pageContent.push({
+                    src: img ? img.src : '',
+                    alt: img ? img.alt : '',
+                    left: el.style.left,
+                    top: el.style.top,
+                    width: el.style.width,
+                    height: el.style.height,
+                    classes: Array.from(el.classList)
+                });
+            });
+
+            const pageData = {
+                title: scrapbookTitleInput ? (scrapbookTitleInput.value || `Page ${savedPages.length + 1}`) : `Page ${savedPages.length + 1}`,
+                content: pageContent,
+                thumbnail: thumbnailDataUrl
+            };
+            savedPages.push(pageData);
+
+            // Create and append the thumbnail to the My Pages list
+            const thumbnailContainer = document.createElement('div');
+            thumbnailContainer.classList.add('page-thumbnail');
+            
+            const thumbnailImg = document.createElement('img');
+            thumbnailImg.src = thumbnailDataUrl;
+            thumbnailImg.alt = "Page thumbnail";
+            thumbnailContainer.appendChild(thumbnailImg);
+            
+            const titleSpan = document.createElement('span');
+            titleSpan.textContent = pageData.title;
+            thumbnailContainer.appendChild(titleSpan);
+
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-page-btn';
+            deleteBtn.textContent = "Delete";
+            deleteBtn.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const idx = Array.from(pagesList.children).indexOf(thumbnailContainer);
+                if (idx !== -1) {
+                    savedPages.splice(idx, 1);
+                    pagesList.removeChild(thumbnailContainer);
+                }
+            });
+            thumbnailContainer.appendChild(deleteBtn);
+
+            thumbnailContainer.addEventListener('click', (ev) => {
+                // Only load if not clicking delete
+                if (ev.target.classList.contains('delete-page-btn')) return;
+
+                // Clear work area and restore content
+                workArea.innerHTML = `<input type="text" id="scrapbook-title-input" class="page-title-input" placeholder="Enter title for this page..." aria-label="Scrapbook page title">`;
+                scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
+                if (scrapbookTitleInput) scrapbookTitleInput.value = pageData.title;
+
+                pageData.content.forEach(item => {
+                    const newGraphic = document.createElement('div');
+                    newGraphic.classList.add('draggable-item');
+                    item.classes.forEach(cls => {
+                        if (cls !== 'draggable-item') newGraphic.classList.add(cls);
+                    });
+                    newGraphic.style.left = item.left;
+                    newGraphic.style.top = item.top;
+                    newGraphic.style.width = item.width;
+                    newGraphic.style.height = item.height;
+                    newGraphic.style.zIndex = zIndexCounter++;
+
+                    const img = document.createElement('img');
+                    img.src = item.src;
+                    img.alt = item.alt;
+                    newGraphic.appendChild(img);
+                    workArea.appendChild(newGraphic);
+
+                    newGraphic.addEventListener('mousedown', () => {
+                        workArea.querySelectorAll('.draggable-item').forEach(e => e.classList.remove('active'));
+                        newGraphic.classList.add('active');
+                        newGraphic.style.zIndex = zIndexCounter++;
+                    });
+
+                    makeDraggableAndResizable(newGraphic);
+                });
+            });
+
+            pagesList.appendChild(thumbnailContainer);
+
+            // Clear the work area for a new page
+            workArea.innerHTML = `<input type="text" id="scrapbook-title-input" class="page-title-input" placeholder="Enter title for this page..." aria-label="Scrapbook page title">`;
+            scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
+        });
+
+        // Create Scrapbook functionality
+        createScrapbookBtn.addEventListener('click', () => {
+            if (savedPages.length === 0) {
+                alert('Please save at least one page before creating a scrapbook.');
+                return;
+            }
+            // Only include title/content/thumbnail for sharing
+            const scrapbookData = JSON.stringify(savedPages);
+            const encodedData = btoa(unescape(encodeURIComponent(scrapbookData)));
+            const shareableUrl = `${window.location.origin}/scrapbook-viewer.html?data=${encodedData}`;
+            
+            shareLink.href = shareableUrl;
+            shareLink.textContent = shareableUrl;
+            shareableUrlContainer.style.display = 'block';
+
+            alert('Scrapbook created! You can now share the URL.');
+        });
+
+    </script>
+</body>
+</html>
