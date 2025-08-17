@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Creative Works</title>
     <style>
+        /* General page layout and styling */
         body, html {
             margin: 0;
             padding: 0;
@@ -58,6 +59,7 @@
             margin-bottom: 15px;
         }
         
+        /* Graphics library items */
         .graphics-library-item {
             display: flex;
             flex-direction: column;
@@ -84,6 +86,7 @@
             margin-bottom: 5px;
         }
         
+        /* Draggable items in the work area */
         .draggable-item {
             position: absolute;
             cursor: move;
@@ -115,6 +118,7 @@
             opacity: 0.6;
         }
 
+        /* Page thumbnails */
         .page-thumbnail {
             width: 100%; /* Make thumbnails responsive to the card width */
             height: 100px;
@@ -220,7 +224,8 @@
         <aside class="sidebar-right card">
             <h2>Graphics Library</h2>
             <div id="graphics-list">
-                </div>
+                <!-- Graphics will be dynamically added here by JavaScript -->
+            </div>
             <div id="shareable-url-container" style="display:none;">
                 <h4>Shareable Scrapbook URL:</h4>
                 <a id="share-link" href="#" target="_blank"></a>
@@ -228,8 +233,11 @@
         </aside>
     </div>
 
+    <!-- External library for capturing the work area as an image -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
     <script>
+        // DOM element references
         const workArea = document.getElementById('work-area');
         const graphicsList = document.getElementById('graphics-list');
         const savePageBtn = document.getElementById('save-page-btn');
@@ -256,7 +264,11 @@
             "10.jpg",
         ];
 
-        // Function to create a graphic library item from an image URL
+        /**
+         * Creates a graphic library item with drag-and-drop properties.
+         * @param {string} imageUrl The URL of the image to display.
+         * @returns {HTMLElement} The created div element for the graphics library.
+         */
         function createGraphicsLibraryItem(imageUrl) {
             const itemDiv = document.createElement('div');
             itemDiv.classList.add('graphics-library-item');
@@ -347,7 +359,10 @@
             }
         });
 
-        // Function to make an element draggable and resizable
+        /**
+         * Makes an element draggable and resizable.
+         * @param {HTMLElement} element The element to make draggable.
+         */
         function makeDraggableAndResizable(element) {
             let isDragging = false;
             let startX, startY, startLeft, startTop;
@@ -376,12 +391,12 @@
                 isDragging = false;
                 document.body.style.userSelect = "";
             });
-
-            // Browser-native resize: already enabled via CSS "resize: both"
-            // For more control, implement custom resize handles
         }
 
-        // Function to make an element removable on Alt + Click
+        /**
+         * Makes an element removable on Alt + Click.
+         * @param {HTMLElement} element The element to make removable.
+         */
         function makeRemovable(element) {
             element.addEventListener('click', (e) => {
                 if (e.altKey) {
@@ -389,55 +404,53 @@
                 }
             });
         }
-        
-        // Save page functionality
-        savePageBtn.addEventListener('click', async () => {
-            // Temporarily hide the input and border for a clean screenshot
-            scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
-            const tempDisplay = scrapbookTitleInput?.style.display || "";
-            const tempBorderStyle = workArea.style.border;
-            if (scrapbookTitleInput) scrapbookTitleInput.style.display = 'none';
-            workArea.style.border = 'none';
-            
-            // Use html2canvas to capture the work area as a thumbnail
-            const canvas = await html2canvas(workArea);
-            const thumbnailDataUrl = canvas.toDataURL();
-            
-            // Restore styles
-            if (scrapbookTitleInput) scrapbookTitleInput.style.display = tempDisplay;
-            workArea.style.border = tempBorderStyle;
 
-            // Capture the positions, sizes, and classes of draggable items
-            const pageContent = [];
-            workArea.querySelectorAll('.draggable-item').forEach(el => {
-                const img = el.querySelector('img');
-                pageContent.push({
-                    src: img ? img.src : '',
-                    alt: img ? img.alt : '',
-                    left: el.style.left,
-                    top: el.style.top,
-                    width: el.style.width,
-                    height: el.style.height,
-                    classes: Array.from(el.classList)
-                });
-            });
+        // --- NEW LOCAL STORAGE CODE ---
 
-            const pageData = {
-                title: scrapbookTitleInput ? (scrapbookTitleInput.value || `Page ${savedPages.length + 1}`) : `Page ${savedPages.length + 1}`,
-                content: pageContent,
-                thumbnail: thumbnailDataUrl
-            };
-            savedPages.push(pageData);
+        /**
+         * Saves the current scrapbook state to Local Storage.
+         */
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('scrapbookData', JSON.stringify(savedPages));
+            } catch (error) {
+                console.error("Failed to save to Local Storage:", error);
+                alert("Could not save your scrapbook. Local storage may be full or blocked.");
+            }
+        }
 
-            // Create and append the thumbnail to the My Pages list
+        /**
+         * Loads the scrapbook state from Local Storage on page load.
+         */
+        function loadFromLocalStorage() {
+            const storedData = localStorage.getItem('scrapbookData');
+            if (storedData) {
+                try {
+                    savedPages = JSON.parse(storedData);
+                    pagesList.innerHTML = ''; // Clear existing thumbnails
+                    savedPages.forEach(pageData => {
+                        addPageThumbnail(pageData);
+                    });
+                } catch (error) {
+                    console.error("Failed to parse data from Local Storage:", error);
+                    alert("There was an issue loading your saved scrapbook data.");
+                }
+            }
+        }
+
+        /**
+         * Adds a page thumbnail to the sidebar and sets up its event listeners.
+         * @param {object} pageData The data object for the page.
+         */
+        function addPageThumbnail(pageData) {
             const thumbnailContainer = document.createElement('div');
             thumbnailContainer.classList.add('page-thumbnail');
-            
+
             const thumbnailImg = document.createElement('img');
-            thumbnailImg.src = thumbnailDataUrl;
+            thumbnailImg.src = pageData.thumbnail;
             thumbnailImg.alt = "Page thumbnail";
             thumbnailContainer.appendChild(thumbnailImg);
-            
+
             const titleSpan = document.createElement('span');
             titleSpan.textContent = pageData.title;
             thumbnailContainer.appendChild(titleSpan);
@@ -447,28 +460,31 @@
             deleteBtn.className = 'delete-page-btn';
             deleteBtn.textContent = "Delete";
             deleteBtn.addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                const idx = Array.from(pagesList.children).indexOf(thumbnailContainer);
+                ev.stopPropagation(); // Prevent the thumbnail click event from firing
+                const idx = savedPages.indexOf(pageData);
                 if (idx !== -1) {
                     savedPages.splice(idx, 1);
                     pagesList.removeChild(thumbnailContainer);
+                    saveToLocalStorage(); // Save changes after deletion
                 }
             });
             thumbnailContainer.appendChild(deleteBtn);
 
-            thumbnailContainer.addEventListener('click', (ev) => {
-                // Only load if not clicking delete
-                if (ev.target.classList.contains('delete-page-btn')) return;
+            // Click to load the page
+            thumbnailContainer.addEventListener('click', () => {
+                // Clear the work area and add the title input
+                workArea.innerHTML = `<h2>Work Area</h2><input type="text" id="scrapbook-title-input" class="page-title-input" placeholder="Enter title for this page..." aria-label="Scrapbook page title">`;
+                const newTitleInput = workArea.querySelector('#scrapbook-title-input');
+                if (newTitleInput) {
+                    newTitleInput.value = pageData.title;
+                }
 
-                // Clear work area and restore content
-                workArea.innerHTML = `<input type="text" id="scrapbook-title-input" class="page-title-input" placeholder="Enter title for this page..." aria-label="Scrapbook page title">`;
-                scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
-                if (scrapbookTitleInput) scrapbookTitleInput.value = pageData.title;
-
+                // Load each item from the saved page content
                 pageData.content.forEach(item => {
                     const newGraphic = document.createElement('div');
                     newGraphic.classList.add('draggable-item');
                     item.classes.forEach(cls => {
+                        // Avoid adding the 'draggable-item' class again if it's already there
                         if (cls !== 'draggable-item') newGraphic.classList.add(cls);
                     });
                     newGraphic.style.left = item.left;
@@ -495,29 +511,66 @@
             });
 
             pagesList.appendChild(thumbnailContainer);
+        }
+
+        // Save page functionality
+        savePageBtn.addEventListener('click', async () => {
+            // Update the scrapbookTitleInput reference
+            scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
+
+            // Temporarily hide elements to get a clean screenshot
+            const tempTitleDisplay = scrapbookTitleInput?.style.display || "";
+            if (scrapbookTitleInput) scrapbookTitleInput.style.display = 'none';
+
+            const canvas = await html2canvas(workArea);
+            const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.5);
+            
+            // Restore hidden elements
+            if (scrapbookTitleInput) scrapbookTitleInput.style.display = tempTitleDisplay;
+
+            // Gather data for the current page
+            const pageContent = [];
+            workArea.querySelectorAll('.draggable-item').forEach(el => {
+                const img = el.querySelector('img');
+                if (img) {
+                    pageContent.push({
+                        src: img.src,
+                        alt: img.alt,
+                        left: el.style.left,
+                        top: el.style.top,
+                        width: el.style.width,
+                        height: el.style.height,
+                        classes: Array.from(el.classList)
+                    });
+                }
+            });
+
+            const pageData = {
+                title: scrapbookTitleInput ? (scrapbookTitleInput.value || `Page ${savedPages.length + 1}`) : `Page ${savedPages.length + 1}`,
+                content: pageContent,
+                thumbnail: thumbnailDataUrl
+            };
+            
+            savedPages.push(pageData);
+            saveToLocalStorage(); // Save to local storage after adding a new page
+
+            addPageThumbnail(pageData); // Add the new thumbnail to the list
 
             // Clear the work area for a new page
-            workArea.innerHTML = `<input type="text" id="scrapbook-title-input" class="page-title-input" placeholder="Enter title for this page..." aria-label="Scrapbook page title">`;
+            workArea.innerHTML = `<h2>Work Area</h2><input type="text" id="scrapbook-title-input" class="page-title-input" placeholder="Enter title for this page..." aria-label="Scrapbook page title">`;
             scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
         });
 
-        // Create Scrapbook functionality
+        // Update the Create Scrapbook button to use local storage
         createScrapbookBtn.addEventListener('click', () => {
-            if (savedPages.length === 0) {
-                alert('Please save at least one page before creating a scrapbook.');
-                return;
-            }
-            // Only include title/content/thumbnail for sharing
-            const scrapbookData = JSON.stringify(savedPages);
-            const encodedData = btoa(unescape(encodeURIComponent(scrapbookData)));
-            const shareableUrl = `${window.location.origin}/scrapbook-viewer.html?data=${encodedData}`;
-            
-            shareLink.href = shareableUrl;
-            shareLink.textContent = shareableUrl;
-            shareableUrlContainer.style.display = 'block';
-
-            alert('Scrapbook created! You can now share the URL.');
+            alert('Your scrapbook is saved locally in your browser. It will be here when you return!');
+            // You can hide the shareable URL container since it's no longer used
+            shareableUrlContainer.style.display = 'none';
         });
+
+        // Initial load of pages from local storage when the page loads
+        document.addEventListener('DOMContentLoaded', loadFromLocalStorage);
+
     </script>
 </body>
 </html>
