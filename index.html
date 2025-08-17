@@ -304,6 +304,38 @@
             "1.png", "2.jpg", "3.jpg", "4.jpg", "5.jpg",
             "6.jpg", "7.jpg", "8.jpg", "9.jpg", "10.jpg"
         ];
+        
+        // --- DRAG AND DROP FROM LIBRARY TO WORK AREA (TOUCH AND MOUSE) ---
+        
+        let ghostElement = null;
+        let activeTouchId = null;
+
+        /**
+         * Normalizes event data for both mouse and touch events.
+         * @param {Event} e The mouse or touch event.
+         * @returns {{x: number, y: number, target: HTMLElement}}
+         */
+        function normalizeEvent(e) {
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY,
+                    target: e.touches[0].target
+                };
+            }
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                return {
+                    x: e.changedTouches[0].clientX,
+                    y: e.changedTouches[0].clientY,
+                    target: e.changedTouches[0].target
+                };
+            }
+            return {
+                x: e.clientX,
+                y: e.clientY,
+                target: e.target
+            };
+        }
 
         /**
          * Creates a graphic library item with drag-and-drop properties.
@@ -339,8 +371,9 @@
             graphicsList.appendChild(item);
         });
 
-        // Make graphics in the library draggable
+        // Event listeners for dragging from graphics library
         graphicsList.querySelectorAll('.graphics-library-item img').forEach(item => {
+            // Mouse event listeners for drag-and-drop
             item.addEventListener('dragstart', (e) => {
                 const parent = e.target.closest('.graphics-library-item');
                 const isHeader = parent.querySelector('.header-toggle').checked;
@@ -350,9 +383,75 @@
                 e.dataTransfer.setData('text/header', isHeader);
                 e.dataTransfer.setData('text/transparent', isTransparent);
             });
+            
+            // Touch event listeners for drag-and-drop
+            item.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Prevent default browser behavior (e.g., scrolling)
+                const touch = e.touches[0];
+                activeTouchId = touch.identifier;
+
+                const parent = e.target.closest('.graphics-library-item');
+                const isHeader = parent.querySelector('.header-toggle').checked;
+                const isTransparent = parent.querySelector('.transparent-toggle').checked;
+
+                // Create a ghost element for visual feedback
+                ghostElement = document.createElement('img');
+                ghostElement.src = item.src;
+                ghostElement.style.position = 'absolute';
+                ghostElement.style.width = '100px';
+                ghostElement.style.height = 'auto';
+                ghostElement.style.pointerEvents = 'none'; // So it doesn't interfere with other elements
+                ghostElement.style.opacity = '0.7';
+                ghostElement.style.transform = `translate(${touch.clientX - 50}px, ${touch.clientY - 50}px)`;
+                ghostElement.style.zIndex = '999';
+                document.body.appendChild(ghostElement);
+
+                // Store data on the ghost element for later use
+                ghostElement.dataset.src = item.src;
+                ghostElement.dataset.isHeader = isHeader;
+                ghostElement.dataset.isTransparent = isTransparent;
+            });
         });
 
-        // Allow dropping on the work area
+        // Common touchmove listener on the document body to move the ghost element
+        document.addEventListener('touchmove', (e) => {
+            if (ghostElement) {
+                e.preventDefault();
+                const touch = Array.from(e.touches).find(t => t.identifier === activeTouchId);
+                if (touch) {
+                    ghostElement.style.transform = `translate(${touch.clientX - 50}px, ${touch.clientY - 50}px)`;
+                }
+            }
+        });
+        
+        // Common touchend listener to handle the drop
+        document.addEventListener('touchend', (e) => {
+            if (ghostElement) {
+                e.preventDefault();
+                const touch = Array.from(e.changedTouches).find(t => t.identifier === activeTouchId);
+                if (touch) {
+                    const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (workArea.contains(dropTarget)) {
+                        // Drop logic for touch
+                        const dropX = touch.clientX - workArea.getBoundingClientRect().left;
+                        const dropY = touch.clientY - workArea.getBoundingClientRect().top;
+                        
+                        createDraggableItem(
+                            ghostElement.dataset.src,
+                            ghostElement.dataset.isHeader === 'true',
+                            ghostElement.dataset.isTransparent === 'true',
+                            dropX,
+                            dropY
+                        );
+                    }
+                }
+                ghostElement.remove();
+                ghostElement = null;
+                activeTouchId = null;
+            }
+        });
+
+        // Allow dropping on the work area (for mouse drag-and-drop)
         workArea.addEventListener('dragover', (e) => {
             e.preventDefault();
         });
@@ -364,76 +463,105 @@
             const isTransparent = e.dataTransfer.getData('text/transparent') === 'true';
 
             if (imageUrl) {
-                const newGraphic = document.createElement('div');
-                newGraphic.classList.add('draggable-item');
-                if (isHeader) {
-                    newGraphic.classList.add('header-image');
-                }
-                if (isTransparent) {
-                    newGraphic.classList.add('transparent-image');
-                }
-
-                const offsetX = e.offsetX || 10;
-                const offsetY = e.offsetY || 10;
-                newGraphic.style.left = `${offsetX}px`;
-                newGraphic.style.top = `${offsetY}px`;
-                newGraphic.style.width = '100px';
-                newGraphic.style.height = '100px';
-                newGraphic.style.zIndex = zIndexCounter++;
-
-                const img = document.createElement('img');
-                img.src = imageUrl;
-                img.alt = "Scrapbook graphic";
-                newGraphic.appendChild(img);
-                workArea.appendChild(newGraphic);
-
-                makeDraggableAndResizable(newGraphic);
-                makeRemovable(newGraphic);
-
-                newGraphic.addEventListener('mousedown', (evt) => {
-                    workArea.querySelectorAll('.draggable-item').forEach(el => el.classList.remove('active'));
-                    newGraphic.classList.add('active');
-                    newGraphic.style.zIndex = zIndexCounter++;
-                });
+                const dropX = e.offsetX || 10;
+                const dropY = e.offsetY || 10;
+                createDraggableItem(imageUrl, isHeader, isTransparent, dropX, dropY);
             }
         });
 
         /**
-         * Makes an element draggable and resizable.
+         * Creates a new draggable item in the work area.
+         * @param {string} imageUrl The URL of the image.
+         * @param {boolean} isHeader If it's a header image.
+         * @param {boolean} isTransparent If it's transparent.
+         * @param {number} x The x position to place it.
+         * @param {number} y The y position to place it.
+         */
+        function createDraggableItem(imageUrl, isHeader, isTransparent, x, y) {
+            const newGraphic = document.createElement('div');
+            newGraphic.classList.add('draggable-item');
+            if (isHeader) {
+                newGraphic.classList.add('header-image');
+            }
+            if (isTransparent) {
+                newGraphic.classList.add('transparent-image');
+            }
+
+            newGraphic.style.left = `${x}px`;
+            newGraphic.style.top = `${y}px`;
+            newGraphic.style.width = '100px';
+            newGraphic.style.height = '100px';
+            newGraphic.style.zIndex = zIndexCounter++;
+
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.alt = "Scrapbook graphic";
+            newGraphic.appendChild(img);
+            workArea.appendChild(newGraphic);
+
+            makeDraggableAndResizable(newGraphic);
+            makeRemovable(newGraphic);
+
+            newGraphic.addEventListener('mousedown', (evt) => {
+                workArea.querySelectorAll('.draggable-item').forEach(el => el.classList.remove('active'));
+                newGraphic.classList.add('active');
+                newGraphic.style.zIndex = zIndexCounter++;
+            });
+            // Touch event for selecting an item
+            newGraphic.addEventListener('touchstart', (evt) => {
+                workArea.querySelectorAll('.draggable-item').forEach(el => el.classList.remove('active'));
+                newGraphic.classList.add('active');
+                newGraphic.style.zIndex = zIndexCounter++;
+            });
+        }
+        
+        /**
+         * Makes an element draggable and resizable using both mouse and touch.
          * @param {HTMLElement} element The element to make draggable.
          */
         function makeDraggableAndResizable(element) {
             let isDragging = false;
             let startX, startY, startLeft, startTop;
 
-            element.addEventListener('mousedown', (e) => {
-                if (e.target.tagName === 'IMG') {
-                    isDragging = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    startLeft = parseInt(element.style.left, 10);
-                    startTop = parseInt(element.style.top, 10);
-                    document.body.style.userSelect = "none";
-                }
-            });
+            const startDrag = (e) => {
+                e.preventDefault(); // Prevent default behavior like scrolling
+                const event = normalizeEvent(e);
+                isDragging = true;
+                startX = event.x;
+                startY = event.y;
+                startLeft = parseInt(element.style.left, 10);
+                startTop = parseInt(element.style.top, 10);
+                document.body.style.userSelect = "none";
+                document.body.style.touchAction = "none";
+            };
 
-            document.addEventListener('mousemove', (e) => {
-                if (isDragging) {
-                    let dx = e.clientX - startX;
-                    let dy = e.clientY - startY;
-                    element.style.left = `${startLeft + dx}px`;
-                    element.style.top = `${startTop + dy}px`;
-                }
-            });
+            const doDrag = (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const event = normalizeEvent(e);
+                let dx = event.x - startX;
+                let dy = event.y - startY;
+                element.style.left = `${startLeft + dx}px`;
+                element.style.top = `${startTop + dy}px`;
+            };
 
-            document.addEventListener('mouseup', () => {
+            const stopDrag = () => {
                 isDragging = false;
                 document.body.style.userSelect = "";
-            });
+                document.body.style.touchAction = "";
+            };
+
+            element.addEventListener('mousedown', startDrag);
+            element.addEventListener('touchstart', startDrag);
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('touchmove', doDrag);
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchend', stopDrag);
+            document.addEventListener('touchcancel', stopDrag);
         }
 
         /**
-         * Makes an element removable on Alt + Click.
+         * Makes an element removable on Alt + Click (or a long touch on a touch display).
          * @param {HTMLElement} element The element to make removable.
          */
         function makeRemovable(element) {
@@ -441,6 +569,21 @@
                 if (e.altKey) {
                     element.remove();
                 }
+            });
+            
+            let longPressTimer;
+            element.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+                longPressTimer = setTimeout(() => {
+                    const confirmed = confirm("Do you want to delete this graphic?");
+                    if (confirmed) {
+                        element.remove();
+                    }
+                }, 1000); // 1-second long press
+            });
+            
+            element.addEventListener('touchend', (e) => {
+                clearTimeout(longPressTimer);
             });
         }
 
@@ -594,31 +737,13 @@
                 }
 
                 pageData.content.forEach(item => {
-                    const newGraphic = document.createElement('div');
-                    newGraphic.classList.add('draggable-item');
-                    item.classes.forEach(cls => {
-                        if (cls !== 'draggable-item') newGraphic.classList.add(cls);
-                    });
-                    newGraphic.style.left = item.left;
-                    newGraphic.style.top = item.top;
-                    newGraphic.style.width = item.width;
-                    newGraphic.style.height = item.height;
-                    newGraphic.style.zIndex = zIndexCounter++;
-
-                    const img = document.createElement('img');
-                    img.src = item.src;
-                    img.alt = item.alt;
-                    newGraphic.appendChild(img);
-                    workArea.appendChild(newGraphic);
-
-                    makeDraggableAndResizable(newGraphic);
-                    makeRemovable(newGraphic);
-
-                    newGraphic.addEventListener('mousedown', () => {
-                        workArea.querySelectorAll('.draggable-item').forEach(e => e.classList.remove('active'));
-                        newGraphic.classList.add('active');
-                        newGraphic.style.zIndex = zIndexCounter++;
-                    });
+                    createDraggableItem(
+                        item.src,
+                        item.classes.includes('header-image'),
+                        item.classes.includes('transparent-image'),
+                        parseInt(item.left),
+                        parseInt(item.top)
+                    );
                 });
             });
 
