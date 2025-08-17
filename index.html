@@ -1,12 +1,3 @@
-I've updated the code with the fix you need. The change is in the `workArea.addEventListener('drop', ...)` function, where a single line `e.preventDefault();` was added at the very beginning.
-
-This change prevents the browser's default drag-and-drop behavior, which was causing the duplicate images to appear whenever you moved the mouse after dropping an item. The new code will now correctly place a single image in the work area when you drag and drop it.
-
-### Updated Code
-
-Here is the complete, updated code with the fix applied:
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -344,17 +335,19 @@ Here is the complete, updated code with the fix applied:
                 newGraphic.appendChild(img);
                 workArea.appendChild(newGraphic);
 
+                // Make the newly added graphic draggable and removable
+                makeDraggableAndResizable(newGraphic);
+                makeRemovable(newGraphic);
+
                 newGraphic.addEventListener('mousedown', (evt) => {
                     workArea.querySelectorAll('.draggable-item').forEach(el => el.classList.remove('active'));
                     newGraphic.classList.add('active');
                     newGraphic.style.zIndex = zIndexCounter++;
                 });
-
-                makeDraggableAndResizable(newGraphic);
             }
         });
 
-        // Improved drag: use left/top, not transform
+        // Function to make an element draggable and resizable
         function makeDraggableAndResizable(element) {
             let isDragging = false;
             let startX, startY, startLeft, startTop;
@@ -386,6 +379,15 @@ Here is the complete, updated code with the fix applied:
 
             // Browser-native resize: already enabled via CSS "resize: both"
             // For more control, implement custom resize handles
+        }
+
+        // Function to make an element removable on Alt + Click
+        function makeRemovable(element) {
+            element.addEventListener('click', (e) => {
+                if (e.altKey) {
+                    element.remove();
+                }
+            });
         }
         
         // Save page functionality
@@ -481,13 +483,14 @@ Here is the complete, updated code with the fix applied:
                     newGraphic.appendChild(img);
                     workArea.appendChild(newGraphic);
 
+                    makeDraggableAndResizable(newGraphic);
+                    makeRemovable(newGraphic);
+
                     newGraphic.addEventListener('mousedown', () => {
                         workArea.querySelectorAll('.draggable-item').forEach(e => e.classList.remove('active'));
                         newGraphic.classList.add('active');
                         newGraphic.style.zIndex = zIndexCounter++;
                     });
-
-                    makeDraggableAndResizable(newGraphic);
                 });
             });
 
@@ -515,7 +518,6 @@ Here is the complete, updated code with the fix applied:
 
             alert('Scrapbook created! You can now share the URL.');
         });
-
     </script>
 </body>
 </html>
