@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creative Works</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+        }
+
+        .sidebar-left, .sidebar-right {
+            width: 200px;
+            background-color: #f4f4f4;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            flex: 1;
+            background-color: #fff;
+            padding: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        h2 {
+            margin-top: 0;
+        }
+        
+        .graphics-library-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fff;
+        }
+
+        .graphics-library-item img {
+            width: 100px;
+            height: auto;
+            border: 1px solid #ccc;
+            padding: 5px;
+            cursor: grab;
+            margin-bottom: 5px;
+        }
+        
+        .draggable-item {
+            position: absolute;
+            cursor: move;
+            border: 2px dashed transparent;
+            resize: both;
+            overflow: hidden;
+            z-index: 10;
+            min-width: 40px;
+            min-height: 40px;
+            background: transparent;
+            box-sizing: border-box;
+        }
+        
+        .draggable-item:hover, .draggable-item.active {
+            border-color: #007BFF;
+        }
+        
+        .draggable-item img {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .draggable-item.header-image {
+            z-index: 100;
+        }
+        
+        .draggable-item.transparent-image {
+            opacity: 0.6;
+        }
+
+        .page-thumbnail {
+            width: 100px;
+            height: 100px;
+            border: 1px solid black;
+            margin-bottom: 10px;
+            background-color: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            flex-direction: column;
+        }
+
+        .page-thumbnail img {
+            max-width: 100%;
+            max-height: 60px;
+        }
+
+        .page-title-input {
+            width: 90%;
+            padding: 5px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .button-group {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .button-group button {
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .button-group button:hover {
+            background-color: #0056b3;
+        }
+
+        .delete-page-btn {
+            background: #dc3545;
+            color: #fff;
+            border: none;
+            padding: 3px 6px;
+            font-size: 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-top: 3px;
+        }
+        .delete-page-btn:hover {
+            background: #b52e38;
+        }
+
+        #shareable-url-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border: 1px solid #ccc;
+            word-wrap: break-word;
+        }
+
+        #shareable-url-container a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Creative Works</h1>
+    </header>
+
+    <div class="container">
+        <aside class="sidebar-left">
+            <h2>My Pages</h2>
+            <div id="pages-list"></div>
+            <div class="button-group">
+                <button id="save-page-btn">Save Page</button>
+                <button id="create-scrapbook-btn">Create Scrapbook</button>
+            </div>
+        </aside>
+
+        <main class="main-content" id="work-area">
+            <h2>Work Area</h2>
+            <input type="text" id="scrapbook-title-input" class="page-title-input" placeholder="Enter title for this page..." aria-label="Scrapbook page title">
+        </main>
+
+        <aside class="sidebar-right">
+            <h2>Graphics Library</h2>
+            <div id="graphics-list">
+                <div class="graphics-library-item" data-src="https://via.placeholder.com/100x100.png?text=PNG">
+                    <img src="https://via.placeholder.com/100x100.png?text=PNG" alt="A sample PNG graphic" draggable="true">
+                    <label>
+                        <input type="checkbox" class="header-toggle"> Header
+                    </label>
+                    <label>
+                        <input type="checkbox" class="transparent-toggle"> Transparent
+                    </label>
+                </div>
+                <div class="graphics-library-item" data-src="https://via.placeholder.com/100x100.jpg?text=JPG">
+                    <img src="https://via.placeholder.com/100x100.jpg?text=JPG" alt="A sample JPG graphic" draggable="true">
+                    <label>
+                        <input type="checkbox" class="header-toggle"> Header
+                    </label>
+                    <label>
+                        <input type="checkbox" class="transparent-toggle"> Transparent
+                    </label>
+                </div>
+                <div class="graphics-library-item" data-src="https://via.placeholder.com/100x100.gif?text=GIF">
+                    <img src="https://via.placeholder.com/100x100.gif?text=GIF" alt="A sample GIF graphic" draggable="true">
+                    <label>
+                        <input type="checkbox" class="header-toggle"> Header
+                    </label>
+                    <label>
+                        <input type="checkbox" class="transparent-toggle"> Transparent
+                    </label>
+                </div>
+            </div>
+            <div id="shareable-url-container" style="display:none;">
+                <h4>Shareable Scrapbook URL:</h4>
+                <a id="share-link" href="#" target="_blank"></a>
+            </div>
+        </aside>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        const workArea = document.getElementById('work-area');
+        const graphicsList = document.getElementById('graphics-list');
+        const savePageBtn = document.getElementById('save-page-btn');
+        const pagesList = document.getElementById('pages-list');
+        const createScrapbookBtn = document.getElementById('create-scrapbook-btn');
+        let scrapbookTitleInput = document.getElementById('scrapbook-title-input');
+        const shareableUrlContainer = document.getElementById('shareable-url-container');
+        const shareLink = document.getElementById('share-link');
+
+        let zIndexCounter = 10;
+        let savedPages = [];
+
+        // Make graphics in the library draggable
+        graphicsList.querySelectorAll('.graphics-library-item img').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                const parent = e.target.closest('.graphics-library-item');
+                const isHeader = parent.querySelector('.header-toggle').checked;
+                const isTransparent = parent.querySelector('.transparent-toggle').checked;
+
+                e.dataTransfer.setData('text/plain', e.target.src);
+                e.dataTransfer.setData('text/header', isHeader);
+                e.dataTransfer.setData('text/transparent', isTransparent);
+            });
+        });
+
+        // Allow dropping on the work area
+        workArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        workArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const imageUrl = e.dataTransfer.getData('text/plain');
+            const isHeader = e.dataTransfer.getData('text/header') === 'true';
+            const isTransparent = e.dataTransfer.getData('text/transparent') === 'true';
+
+            if (imageUrl) {
+                const newGraphic = document.createElement('div');
+                newGraphic.classList.add('draggable-item');
+                if (isHeader) {
+                    newGraphic.classList.add('header-image');
+                }
+                if (isTransparent) {
+                    newGraphic.classList.add('transparent-image');
+                }
+
+                // Set position using left/top for easier serialization
+                const offsetX = e.offsetX || 10;
+                const offsetY = e.offsetY || 10;
+                newGraphic.style.left = `${offsetX}px`;
+                newGraphic.style.top = `${offsetY}px`;
+                newGraphic.style.width = '100px';
+                newGraphic.style.height = '100px';
+                newGraphic.style.zIndex = zIndexCounter++;
+
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.alt = "Scrapbook graphic";
+                newGraphic.appendChild(img);
+                workArea.appendChild(newGraphic);
+
+                newGraphic.addEventListener('mousedown', (evt) => {
+                    workArea.querySelectorAll('.draggable-item').forEach(el => el.classList.remove('active'));
+                    newGraphic.classList.add('active');
+                    newGraphic.style.zIndex = zIndexCounter++;
+                });
+
+                makeDraggableAndResizable(newGraphic);
+            }
+        });
+
+        // Improved drag: use left/top, not transform
+        function makeDraggableAndResizable(element) {
+            let isDragging = false;
+            let startX, startY, startLeft, startTop;
+
+            element.addEventListener('mousedown', (e) => {
+                if (e.target.tagName === 'IMG') {
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startLeft = parseInt(element.style.left, 10);
+                    startTop = parseInt(element.style.top, 10);
+                    document.body.style.userSelect = "none";
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    let dx = e.clientX - startX;
+                    let dy = e.clientY - startY;
+                    element.style.left = `${startLeft + dx}px`;
+                    element.style.top = `${startTop + dy}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                document.body.style.userSelect = "";
+            });
+
+            // Browser-native resize: already enabled via CSS "resize: both"
+            // For more control, implement custom resize handles
+        }
+        
+        // Save page functionality
+        savePageBtn.addEventListener('click', async () => {
+            // Temporarily hide the input and border for a clean screenshot
+            scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
+            const tempDisplay = scrapbookTitleInput?.style.display || "";
+            const tempBorderStyle = workArea.style.border;
+            if (scrapbookTitleInput) scrapbookTitleInput.style.display = 'none';
+            workArea.style.border = 'none';
+            
+            // Use html2canvas to capture the work area as a thumbnail
+            const canvas = await html2canvas(workArea);
+            const thumbnailDataUrl = canvas.toDataURL();
+            
+            // Restore styles
+            if (scrapbookTitleInput) scrapbookTitleInput.style.display = tempDisplay;
+            workArea.style.border = tempBorderStyle;
+
+            // Capture the positions, sizes, and classes of draggable items
+            const pageContent = [];
+            workArea.querySelectorAll('.draggable-item').forEach(el => {
+                const img = el.querySelector('img');
+                pageContent.push({
+                    src: img ? img.src : '',
+                    alt: img ? img.alt : '',
+                    left: el.style.left,
+                    top: el.style.top,
+                    width: el.style.width,
+                    height: el.style.height,
+                    classes: Array.from(el.classList)
+                });
+            });
+
+            const pageData = {
+                title: scrapbookTitleInput ? (scrapbookTitleInput.value || `Page ${savedPages.length + 1}`) : `Page ${savedPages.length + 1}`,
+                content: pageContent,
+                thumbnail: thumbnailDataUrl
+            };
+            savedPages.push(pageData);
+
+            // Create and append the thumbnail to the My Pages list
+            const thumbnailContainer = document.createElement('div');
+            thumbnailContainer.classList.add('page-thumbnail');
+            
+            const thumbnailImg = document.createElement('img');
+            thumbnailImg.src = thumbnailDataUrl;
+            thumbnailImg.alt = "Page thumbnail";
+            thumbnailContainer.appendChild(thumbnailImg);
+            
+            const titleSpan = document.createElement('span');
+            titleSpan.textContent = pageData.title;
+            thumbnailContainer.appendChild(titleSpan);
+
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-page-btn';
+            deleteBtn.textContent = "Delete";
+            deleteBtn.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const idx = Array.from(pagesList.children).indexOf(thumbnailContainer);
+                if (idx !== -1) {
+                    savedPages.splice(idx, 1);
+                    pagesList.removeChild(thumbnailContainer);
+                }
+            });
+            thumbnailContainer.appendChild(deleteBtn);
+
+            thumbnailContainer.addEventListener('click', (ev) => {
+                // Only load if not clicking delete
+                if (ev.target.classList.contains('delete-page-btn')) return;
+
+                // Clear work area and restore content
+                workArea.innerHTML = `<input type="text" id="scrapbook-title-input" class="page-title-input" placeholder="Enter title for this page..." aria-label="Scrapbook page title">`;
+                scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
+                if (scrapbookTitleInput) scrapbookTitleInput.value = pageData.title;
+
+                pageData.content.forEach(item => {
+                    const newGraphic = document.createElement('div');
+                    newGraphic.classList.add('draggable-item');
+                    item.classes.forEach(cls => {
+                        if (cls !== 'draggable-item') newGraphic.classList.add(cls);
+                    });
+                    newGraphic.style.left = item.left;
+                    newGraphic.style.top = item.top;
+                    newGraphic.style.width = item.width;
+                    newGraphic.style.height = item.height;
+                    newGraphic.style.zIndex = zIndexCounter++;
+
+                    const img = document.createElement('img');
+                    img.src = item.src;
+                    img.alt = item.alt;
+                    newGraphic.appendChild(img);
+                    workArea.appendChild(newGraphic);
+
+                    newGraphic.addEventListener('mousedown', () => {
+                        workArea.querySelectorAll('.draggable-item').forEach(e => e.classList.remove('active'));
+                        newGraphic.classList.add('active');
+                        newGraphic.style.zIndex = zIndexCounter++;
+                    });
+
+                    makeDraggableAndResizable(newGraphic);
+                });
+            });
+
+            pagesList.appendChild(thumbnailContainer);
+
+            // Clear the work area for a new page
+            workArea.innerHTML = `<input type="text" id="scrapbook-title-input" class="page-title-input" placeholder="Enter title for this page..." aria-label="Scrapbook page title">`;
+            scrapbookTitleInput = workArea.querySelector('#scrapbook-title-input');
+        });
+
+        // Create Scrapbook functionality
+        createScrapbookBtn.addEventListener('click', () => {
+            if (savedPages.length === 0) {
+                alert('Please save at least one page before creating a scrapbook.');
+                return;
+            }
+            // Only include title/content/thumbnail for sharing
+            const scrapbookData = JSON.stringify(savedPages);
+            const encodedData = btoa(unescape(encodeURIComponent(scrapbookData)));
+            const shareableUrl = `${window.location.origin}/scrapbook-viewer.html?data=${encodedData}`;
+            
+            shareLink.href = shareableUrl;
+            shareLink.textContent = shareableUrl;
+            shareableUrlContainer.style.display = 'block';
+
+            alert('Scrapbook created! You can now share the URL.');
+        });
+
+    </script>
+</body>
+</html>
